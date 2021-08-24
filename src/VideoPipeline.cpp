@@ -1,14 +1,11 @@
-/*
- * @Description: Implement of gstreamer pipeline.
- * @version: 0.1
- * @Author: Ricardo Lu<shenglu1202@163.com>
- * @Date: 2021-08-14 19:12:19
- * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-17 20:45:03
- */
-
+//
+// headers included
+//
 #include <VideoPipeline.h>
 
+//
+// cb_osd_buffer_probe
+//
 static GstPadProbeReturn
 cb_osd_buffer_probe (
     GstPad* pad, 
@@ -45,6 +42,9 @@ cb_osd_buffer_probe (
     return GST_PAD_PROBE_OK;
 }
 
+//
+// cb_sync_before_buffer_probe
+//
 static GstPadProbeReturn
 cb_sync_before_buffer_probe (
     GstPad* pad,
@@ -59,6 +59,9 @@ cb_sync_before_buffer_probe (
     return GST_PAD_PROBE_OK;
 }
 
+//
+// cb_sync_buffer_probe
+//
 static GstPadProbeReturn
 cb_sync_buffer_probe (
     GstPad* pad,
@@ -83,6 +86,9 @@ cb_sync_buffer_probe (
     return GST_PAD_PROBE_OK;
 }
 
+//
+// seek_decoded_file
+//
 static gboolean
 seek_decoded_file (
     gpointer user_data)
@@ -104,6 +110,9 @@ seek_decoded_file (
     return false;
 }
 
+//
+// restart_stream_buffer_probe
+//
 static GstPadProbeReturn
 restart_stream_buffer_probe (
 	GstPad* pad, 
@@ -147,6 +156,9 @@ restart_stream_buffer_probe (
 	return GST_PAD_PROBE_OK;
 }
 
+//
+// cb_decodebin_child_added
+//
 static void
 cb_decodebin_child_added (
     GstChildProxy* child_proxy, 
@@ -176,6 +188,9 @@ done:
     return;
 }
 
+//
+// cb_uridecodebin_source_setup
+//
 static void
 cb_uridecodebin_source_setup (
 	GstElement* object, 
@@ -193,6 +208,9 @@ cb_uridecodebin_source_setup (
 	}
 }
 
+//
+// cb_uridecodebin_pad_added
+//
 static void
 cb_uridecodebin_pad_added (
     GstElement* decodebin, 
@@ -226,6 +244,9 @@ cb_uridecodebin_pad_added (
     gst_caps_unref (caps);
 }
     
+//
+// cb_uridecodebin_child_added
+//
 static void
 cb_uridecodebin_child_added (
     GstChildProxy* child_proxy, 
@@ -252,6 +273,9 @@ done:
     return;
 }
 
+//
+// cb_appsink_new_sample
+//
 GstFlowReturn 
 cb_appsink_new_sample (
     GstElement* sink, 
@@ -282,8 +306,8 @@ cb_appsink_new_sample (
             //    vp->config_.output_fps_d_);
 
             if (cur > dst) {
-                gst_sample_unref (sample);
-                return GST_FLOW_OK;
+                 gst_sample_unref (sample);
+                 return GST_FLOW_OK;
             }
         }
 
@@ -298,6 +322,9 @@ cb_appsink_new_sample (
     return GST_FLOW_OK;
 }
 
+//
+// VideoPipeline
+//
 VideoPipeline::VideoPipeline (
     const VideoPipelineConfig& config)
 {
@@ -325,11 +352,17 @@ VideoPipeline::VideoPipeline (
     proc_result_args_ = NULL;
 }
 
+//
+// ~VideoPipeline
+//
 VideoPipeline::~VideoPipeline (void)
 {
 
 }
 
+//
+// Create
+//
 bool
 VideoPipeline::Create (void)
 {
@@ -387,6 +420,13 @@ VideoPipeline::Create (void)
     TS_LINK_ELEMENT (tee0_, queue0_);
     TS_LINK_ELEMENT (tee0_, queue1_);
 
+    if (!(qtioverlay_ = gst_element_factory_make ("qtioverlay", "osd"))) {
+        TS_ERR_MSG_V ("Failed to create element qtioverlay named osd");
+        goto done;
+    }
+
+    gst_bin_add_many (GST_BIN (pipeline_), qtioverlay_, NULL);
+
     if (!(display_ = gst_element_factory_make ("waylandsink", "display"))) {
         TS_ERR_MSG_V ("Failed to create element waylandsink named display");
         goto done;
@@ -400,7 +440,8 @@ VideoPipeline::Create (void)
     
     gst_bin_add_many (GST_BIN (pipeline_), display_, NULL);
 
-    TS_LINK_ELEMENT (queue0_, display_);
+    TS_LINK_ELEMENT (queue0_, qtioverlay_);
+    TS_LINK_ELEMENT (qtioverlay_, display_);
 
     if (!(transform_ = gst_element_factory_make ("qtivtransform", "transform"))) {
         TS_ERR_MSG_V ("Failed to create element qtivtransform named transform");
@@ -478,6 +519,9 @@ done:
     return false;
 }
 
+//
+// Start
+//
 bool VideoPipeline::Start(void)
 {
     if (GST_STATE_CHANGE_FAILURE == gst_element_set_state (pipeline_,
@@ -489,6 +533,9 @@ bool VideoPipeline::Start(void)
     return true;
 }
 
+//
+// Pause
+//
 bool VideoPipeline::Pause(void)
 {
     GstState state, pending;
@@ -515,6 +562,9 @@ bool VideoPipeline::Pause(void)
     }
 }
 
+//
+// Resume
+//
 bool VideoPipeline::Resume (void)
 {
     GstState state, pending;
@@ -541,6 +591,9 @@ bool VideoPipeline::Resume (void)
     }
 }
 
+//
+// Destroy
+//
 void VideoPipeline::Destroy (void)
 {
     if (pipeline_) {
@@ -554,6 +607,9 @@ void VideoPipeline::Destroy (void)
     g_cond_clear  (&wait_cond_);
 }
 
+//ta
+// SetCallback
+//
 void VideoPipeline::SetCallback (
     cbPutData cb, 
     void* args)
@@ -562,6 +618,9 @@ void VideoPipeline::SetCallback (
     put_frame_args_ = args;
 }
 
+//
+// SetCallback
+//
 void VideoPipeline::SetCallback (
     cbGetResult func, 
     void* args)
@@ -570,6 +629,9 @@ void VideoPipeline::SetCallback (
     get_result_args_ = args;
 }
 
+//
+// SetCallback
+//
 void VideoPipeline::SetCallback (
     cbProcResult func, 
     void* args)

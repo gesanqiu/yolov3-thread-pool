@@ -13,10 +13,10 @@
       },
       "output":{
         "crop":{
-          "x":-1,
-          "y":-1,
-          "width":-1,
-          "height":-1
+          "x":0,
+          "y":0,
+          "width":1920,
+          "height":1080
         },
         "format":"BGR",
         "width":1920,

@@ -24,8 +24,9 @@ include_directories(
     ${GST_INCLUDE_DIRS}
     ${GSTAPP_INCLUDE_DIRS}
     ${GLIB_INCLUDE_DIRS}
-	${GFLAGS_INCLUDE_DIRS}
+    ${GFLAGS_INCLUDE_DIRS}
     ${JSON_INCLUDE_DIRS}
+    /usr/include/qrb5165
 )
 
 link_directories(
@@ -34,7 +35,7 @@ link_directories(
     ${GSTAPP_LIBRARY_DIRS}
     ${GLIB_LIBRARY_DIRS}
     ${JSON_LIBRARY_DIRS}
-	${PROJECT_SOURCE_DIR}/libs
+    ${PROJECT_SOURCE_DIR}/libs
     ${GFLAGS_LIBRARY_DIRS}
 )
 
@@ -58,4 +59,5 @@ target_link_libraries(${PROJECT_NAME}
     ${GFLAGS_LIBRARIES}
     pthread
     dl
+    qtimlmeta
 )

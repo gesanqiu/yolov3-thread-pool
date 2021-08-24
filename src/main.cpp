@@ -1,21 +1,14 @@
-/*
- * @Description: Main thread.
- * @version: 0.1
- * @Author: Ricardo Lu<shenglu1202@163.com>
- * @Date: 2021-08-14 19:12:19
- * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-17 20:43:48
- */
-
 #include <unistd.h>
 #include <sys/stat.h>
 #include <gflags/gflags.h>
+#include <ml-meta/ml_meta.h>
 
 #include "PipelineInterface.h"
 #include "ThreadPool.h"
 #include "DataDoubleCache.h"
 #include "DataMailbox.h"
 
+std::vector<std::string> g_labels;
 
 static bool validateCfg(const char* name, const std::string& value)
 {
@@ -47,6 +40,26 @@ static bool validateCnt(const char* name, int value)
 
 DEFINE_int32(count, 0, "number of SNPE runtime Entity(Thread pool size).(0-6)");
 DEFINE_validator(count, &validateCnt);
+
+static bool validateLabelPath(const char* name, const std::string& value)
+{
+    if (!value.compare("")) {
+        TS_ERR_MSG_V ("Label file required!");
+        return false;
+    }
+
+    struct stat statbuf;
+    if (!stat(value.c_str(), &statbuf)) {
+        TS_INFO_MSG_V ("Found Label file: %s", value.c_str());
+        return true;
+    }
+
+    TS_ERR_MSG_V ("Invalid Label file.");
+    return false;
+}
+
+DEFINE_string(labelpath, "../models/labels.txt", "label file of AI model.");
+DEFINE_validator(labelpath, &validateLabelPath);
 
 static GMainLoop* gbl_main_loop = NULL;
 
@@ -319,18 +332,38 @@ void osdResult(GstBuffer* buffer,
         "format"), sizeof(image_f));
     
     for (int i = 0; i < results->size(); i++) {
-        const unsigned char R = 0, G = 255, B = 0;
-        const unsigned char Y = 0.257*R + 0.504*G + 0.098*B + 16;
-        const unsigned char U =-0.148*R - 0.291*G + 0.439*B + 128;
-        const unsigned char V = 0.439*R - 0.368*G - 0.071*B + 128;
+        // const unsigned char R = 0, G = 255, B = 0;
+        // const unsigned char Y = 0.257*R + 0.504*G + 0.098*B + 16;
+        // const unsigned char U =-0.148*R - 0.291*G + 0.439*B + 128;
+        // const unsigned char V = 0.439*R - 0.368*G - 0.071*B + 128;
         if (results->at(i).rect[0]>=0 && results->at(i).rect[0]+results->at(i).rect[2]<=image_w &&
             results->at(i).rect[1]>=0 && results->at(i).rect[1]+results->at(i).rect[3]<=image_h) {
-            drawYUVRect(info.data, image_w, image_h, image_f,
-                results->at(i).rect[0], results->at(i).rect[1], results->at(i).rect[2], 
-                results->at(i).rect[3], Y, U, V, 6);
+            // drawYUVRect(info.data, image_w, image_h, image_f,
+            //     results->at(i).rect[0], results->at(i).rect[1], results->at(i).rect[2], 
+            //     results->at(i).rect[3], Y, U, V, 6);
+            GstMLDetectionMeta *meta = gst_buffer_add_detection_meta(buffer);
+            if (!meta) {
+                TS_ERR_MSG_V ("Failed to create metadata");
+                return ;
+            }
+
+            GstMLClassificationResult *box_info = (GstMLClassificationResult*)malloc(
+                sizeof(GstMLClassificationResult));
+
+            uint32_t label_size = g_labels[results->at(i).label].size() + 1;
+            box_info->name = (char *)malloc(label_size);
+            snprintf(box_info->name, label_size, "%s", g_labels[results->at(i).label].c_str());
+
+            box_info->confidence = results->at(i).confidence;
+            meta->box_info = g_slist_append (meta->box_info, box_info);
+
+            meta->bounding_box.x = results->at(i).rect[0];
+            meta->bounding_box.y = results->at(i).rect[1];
+            meta->bounding_box.width = results->at(i).rect[2];
+            meta->bounding_box.height = results->at(i).rect[3];
         }
     }
-    
+
     gst_buffer_unmap(buffer, &info);
 }
 
@@ -340,6 +373,12 @@ int main(int argc, char* argv[])
     gst_init (&argc, &argv);
 
     GMainLoop* ml = NULL;
+
+    std::ifstream in(FLAGS_labelpath);
+    std::string label;
+    while (getline(in, label)) {
+        g_labels.push_back(label);
+    }
     
     DataDoubleCache<std::vector<CLASSIFY_DATA> >* dm =
         new DataDoubleCache<std::vector<CLASSIFY_DATA> > (NULL);

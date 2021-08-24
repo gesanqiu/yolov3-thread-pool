@@ -1,12 +1,3 @@
-/*
- * @Description: Gstreamer pipeline class.
- * @version: 0.1
- * @Author: Ricardo Lu<shenglu1202@163.com>
- * @Date: 2021-08-14 19:12:19
- * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-17 20:47:21
- */
-
 #ifndef __VIDEO_PIPELINE_H__
 #define __VIDEO_PIPELINE_H__
 
@@ -155,6 +146,7 @@ public:
     GstElement* tee0_        { NULL };
     GstElement* queue0_      { NULL };
     GstElement* queue1_      { NULL };
+    GstElement* qtioverlay_  { NULL };
     GstElement* display_     { NULL };
     GstElement* h264parse1_  { NULL };
     GstElement* transform_   { NULL };
